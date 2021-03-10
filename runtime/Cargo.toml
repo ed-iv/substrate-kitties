@@ -1,7 +1,7 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['edouard henriques iv (ediv) <ediv@garbage.market>']
 edition = '2018'
-homepage = 'https://substrate.dev'
+homepage = 'https://garbage.market'
 license = 'Unlicense'
 name = 'node-template-runtime'
 repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
@@ -26,6 +26,7 @@ serde = { features = ['derive'], optional = true, version = '1.0.119' }
 
 # local dependencies
 pallet-template = { path = '../pallets/template', default-features = false, version = '2.0.1' }
+pallet-kitties = { path = '../pallets/kitties', default-features = false }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.1' }
@@ -93,4 +94,5 @@ std = [
     'sp-std/std',
     'sp-transaction-pool/std',
     'sp-version/std',
+    'pallet-kitties/std',
 ]
