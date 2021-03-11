@@ -3821,7 +3821,10 @@ dependencies = [
  "frame-system",
  "pallet-randomness-collective-flip",
  "parity-scale-codec",
+ "sp-core",
  "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
