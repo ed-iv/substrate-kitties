@@ -4,8 +4,8 @@ use codec::{Decode, Encode};
 // Althought we don't use them directly, we need to include StorageDoubleMap and StorageValue
 // so that we can access them via their getters.
 use frame_support::{
-    decl_event, decl_module, decl_storage, traits::Randomness, RuntimeDebug, StorageDoubleMap,
-    StorageValue,
+    decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult,
+    traits::Randomness, RuntimeDebug, RuntimeDebug, StorageDoubleMap, StorageValue,
 };
 use frame_system::ensure_signed;
 use sp_io::hashing::blake2_128;
@@ -29,6 +29,12 @@ decl_event! {
     }
 }
 
+decl_error! {
+    pub enum Error for Module<T: Trait> {
+        KittiesIdOverflow,
+    }
+}
+
 decl_storage! {
     // Must be diff for each module ----vvvvvvv otherwise there could
     // be storage collisions.
@@ -49,6 +55,8 @@ decl_storage! {
 
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+        type Error = Error<T>;
+
         fn deposit_event() = default;
 
         #[weight = 1000]
@@ -60,26 +68,36 @@ decl_module! {
             // using From trait.
             let sender = ensure_signed(origin)?;
 
-            // Generate random 128bit value to use as kitty DNA.
-            let payload = (
-                <pallet_randomness_collective_flip::Module<T> as Randomness<T::Hash>>::random_seed(),
-                &sender,
-                <frame_system::Module<T>>::extrinsic_index(),
-                "foo",
-            );
-            let dna = payload.using_encoded(blake2_128);
+            // If returned DispatchResult is OK, the mutation is committed. Otherwise
+            // it is discarded.
+            //
+            // Mutatable reference --vvvvvvv
+            NextKittyId::try_mutate(|next_id| -> DispatchResult {
+                let current_id = *next_id;
+                *next_id = next_id.checked_add(1).ok_or(<Error<T>>::KittiesIdOverflow)?;
 
-            // Create and store kitty
-            let kitty = Kitty(dna);
-            let kitty_id = Self::next_kitty_id();
 
-            // <Kitties<T>>::insert(&sender, kitty_id, kitty.clone());
-            Kitties::<T>::insert(&sender, kitty_id, kitty.clone());
+                // Generate random 128bit value to use as kitty DNA.
+                let payload = (
+                    <pallet_randomness_collective_flip::Module<T> as Randomness<T::Hash>>::random_seed(),
+                    &sender,
+                    <frame_system::Module<T>>::extrinsic_index(),
+                    "foo",
+                );
+                let dna = payload.using_encoded(blake2_128);
 
-            NextKittyId::put(kitty_id + 1);
+                // Create and store kitty
+                let kitty = Kitty(dna);
+                Kitties::<T>::insert(&sender, current_id, kitty.clone());
+                // <Kitties<T>>::insert(&sender, current_id, kitty.clone());
 
-            // Emit event
-            Self::deposit_event(RawEvent::KittyCreated(sender, kitty_id, kitty));
+                // Emit event
+                Self::deposit_event(RawEvent::KittyCreated(sender, current_id, kitty));
+
+                Ok(())
+            })?;
+
+
         }
     }
 }
